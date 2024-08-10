@@ -12,9 +12,9 @@ interface SceneProps {
 
 interface BodyProps {
   shape: Shape
-  velocity?: Vector2
   restitution: number
-  mass: number
+  velocity?: Vector2
+  mass?: number
   spin?: Vector2
 }
 
@@ -80,14 +80,17 @@ class AABB extends Shape {
 
 interface CircleProps extends ShapeProps {
   radius: number
+  color?: string
 }
 
 class Circle extends Shape {
   radius: number
+  color: string
 
   constructor(props: CircleProps) {
     super(props)
     this.radius = props.radius
+    this.color = props.color ?? '#ffffff'
   }
 
   render(interpolation: number, ctx: CanvasRenderingContext2D): void {
@@ -95,7 +98,10 @@ class Circle extends Shape {
     const y = this.previous.position.y + (this.current.position.y - this.previous.position.y) * interpolation
     ctx.beginPath();
     ctx.arc(x, y, this.radius, 0, 2 * Math.PI)
+    ctx.fillStyle = this.color
+    ctx.fill()
     ctx.stroke()
+    ctx.restore()
   }
 }
 
@@ -361,6 +367,10 @@ const Scene: Component<SceneProps> = (props: SceneProps) => {
       return
     }
 
+    for (let ball of balls) {
+      state.addBody(ball)
+    }
+
     const ctx = canvas.getContext('2d')
     requestAnimationFrame(loop)
     let previousFrameTime = 0
@@ -386,7 +396,9 @@ const Scene: Component<SceneProps> = (props: SceneProps) => {
       }
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       for (let object of objects) {
+        ctx.save()
         object.shape.render(interpolation, ctx)
+        ctx.restore()
         // ctx?.fillRect(object.shape.current.position.x, object.shape.current.position.y, 50, 50)
       }
       requestAnimationFrame(loop);
