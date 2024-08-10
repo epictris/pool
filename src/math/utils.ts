@@ -15,6 +15,12 @@ export class Vector2 {
         return new Vector2({x: this.x * scalar, y: this.y * scalar})
     }
 
+    MagnitudeSquared(): number {
+        return this.x * this.x + this.y * this.y
+    }
+
+    static ZERO = new Vector2({x: 0, y: 0})
+    
     static Subtract(A: Vector2, B: Vector2): Vector2 {
         return new Vector2({x: A.x - B.x, y: A.y - B.y})
     }
