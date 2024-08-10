@@ -226,11 +226,9 @@ class PhysicsState {
     const penetration = circleRadius - distance
 
     if (inside) {
-      const finalNormal = new Vector2({x: -normal.x, y: -normal.y})
-      return new CollisionData(circleRadius - distance, new Vector2({x: -normal.x, y: -normal.y}))
+      return new CollisionData(penetration, new Vector2({x: -normal.x, y: -normal.y}))
     }
-    const finalNormal = normal
-    return new CollisionData(circleRadius - distance, normal)
+    return new CollisionData(penetration, normal)
   }
 
   checkCollisionCircleVsCircle(A: Circle, B: Circle): CollisionData | null {
