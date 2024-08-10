@@ -3,7 +3,7 @@ import {clamp, Transform, Vector2} from '../math/utils'
 
 import Ball from './Ball';
 
-const PHYSICS_STEP = 16
+const PHYSICS_STEP = 5
 
 interface SceneProps {
   width: number
@@ -16,6 +16,7 @@ interface BodyProps {
   velocity?: Vector2
   mass?: number
   spin?: Vector2
+  isBullet?: boolean
 }
 
 class Body {
@@ -26,6 +27,7 @@ class Body {
   inv_mass: number
   force: Vector2
   spin: Vector2
+  private bullet: boolean
 
   constructor(props: BodyProps) {
     this.shape = props.shape
@@ -35,6 +37,11 @@ class Body {
     this.restitution = props.restitution
     this.force = new Vector2({x: 0, y: 0})
     this.spin = props.spin ?? new Vector2({x: 0, y: 0})
+    this.bullet = props.isBullet ?? false
+  }
+
+  isBullet(): boolean {
+    return this.bullet
   }
 }
 
@@ -47,11 +54,11 @@ abstract class Shape {
   previous: Transform
   constructor(props: ShapeProps) {
     this.previous = structuredClone(props.transform)
-    this.current = props.transform
+    this.current = structuredClone(props.transform)
   }
   setTransform(props: {transform: Transform}): void {
-    this.previous = structuredClone(this.current)
-    this.current = props.transform
+    this.previous = this.current
+    this.current = structuredClone(props.transform)
   }
   abstract render(interpolation: number, ctx: CanvasRenderingContext2D): void
 }
@@ -176,6 +183,7 @@ class PhysicsState {
     this.bodies.push(body)
   }
 
+  // maybe define maximum position difference from previous frame (half the width of the smallest object) - if exceeds difference check in steps
   checkCollision(pair: Pair): Manifold | null {
       if (pair.bodyA.shape instanceof Circle) {
         if (pair.bodyB.shape instanceof Circle) {
@@ -235,7 +243,7 @@ class PhysicsState {
     let r = A.radius + B.radius
     const radiusSquared = Math.pow(r, 2)
     const distanceSquared = Math.pow(A.current.position.x - B.current.position.x, 2) + Math.pow(A.current.position.y - B.current.position.y, 2)
-    if (radiusSquared <= distanceSquared)
+    if (radiusSquared < distanceSquared)
       return null
     const normal = new Vector2({x: B.current.position.x - A.current.position.x, y: B.current.position.y - A.current.position.y})
     normal.Normalize()
@@ -286,17 +294,19 @@ class PhysicsState {
       body.force = Vector2.Add(body.force, friction)
   }
 
-  applySpin(body: Body) {
+  applySpin(body: Body, timeStep: number) {
       const spinCoefficient = 1000
+      const spinDecayCoefficient = 1.1
       const spin = body.spin.Mult(spinCoefficient)
       body.force = Vector2.Add(body.force, spin)
-      body.spin = body.spin.Mult(0.98)
+      const spinReduction = body.spin.Mult(spinDecayCoefficient * timeStep)
+      body.spin = Vector2.Subtract(body.spin, spinReduction)
   }
 
   applyForces(timeStep: number) {
     for (let body of this.bodies) {
       this.applyFriction(body)
-      this.applySpin(body)
+      this.applySpin(body, timeStep)
 
       const acceleration = body.force.Mult(body.inv_mass);
       body.velocity = Vector2.Add(body.velocity, acceleration.Mult(timeStep))
@@ -330,7 +340,7 @@ const Scene: Component<SceneProps> = (props: SceneProps) => {
   const left = new Body({restitution: 0.8, shape: new AABB({transform: new Transform({position: new Vector2({x: 30, y: 350}),rotation: 0}), width: 30, height: 640})})
   const right = new Body({restitution: 0.8, shape: new AABB({transform: new Transform({position: new Vector2({x: 370, y: 350}),rotation: 0}), width: 30, height: 640})})
   const balls = [
-    createBall(100, 650, "white", 1550, new Vector2({x: 0.05, y: -1}), new Vector2({x: 0, y: 300})),
+    createBall(100, 650, "white", 1650, new Vector2({x: 0.044, y: -1}), new Vector2({x: 0, y: 300})),
 
     createBall(200, 480, "red"),
 
