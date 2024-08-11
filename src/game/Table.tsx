@@ -3,9 +3,21 @@ import { Engine, PhysicsParams } from '../engine/Engine';
 import { Transform, Vector2 } from '../math/utils';
 import { Ball, BallShape } from '../game/Ball';
 import { Barrier, BarrierShape } from './Barrier';
-import { CanvasRenderer } from '../engine/Renderer';
+import { CanvasDrawable, CanvasRenderer } from '../engine/Renderer';
 import { Cue } from './Cue';
 import { createBall, EightBallPool, GameState } from './EightBallPool';
+
+class Background implements CanvasDrawable {
+  image: HTMLImageElement
+  constructor() {
+    const background = new Image()
+    background.src = "https://i.imgur.com/o871lO0.jpeg"
+    this.image = background
+  }
+  Draw(ctx: CanvasRenderingContext2D): void {
+    ctx.drawImage(this.image, 0, 0)
+  }
+}
 
 interface SceneProps {
   width: number
@@ -28,6 +40,7 @@ const Table: Component<SceneProps> = (props: SceneProps) => {
     if (!ctx) {
       return
     }
+
 
     const renderer = new CanvasRenderer(canvas, ctx)
     const engine = new Engine(props.physicsParams)

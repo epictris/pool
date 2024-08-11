@@ -3,7 +3,9 @@ import { CanvasDrawable } from "../engine/Renderer";
 
 export class BarrierShape extends AABB implements CanvasDrawable {
   Draw(ctx: CanvasRenderingContext2D): void {
-    ctx.fillRect(this.interpolatedTransform.position.x - this.width/2, this.interpolatedTransform.position.y - this.height/2, this.width, this.height)
+    return
+    ctx.strokeStyle = "#fff"
+    ctx.strokeRect(this.interpolatedTransform.position.x - this.width/2, this.interpolatedTransform.position.y - this.height/2, this.width, this.height)
   }
 }
 
