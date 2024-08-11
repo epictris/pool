@@ -37,23 +37,23 @@ function createBalls(): Array<Ball> {
 	return [
 		createBall(200, 480, "red"),
 
-		createBall(190, 499, "yellow"),
-		createBall(210, 499, "red"),
+		createBall(190, 498, "yellow"),
+		createBall(210, 498, "red"),
 
-		createBall(180, 518, "red"),
-		createBall(200, 518, "black"),
-		createBall(220, 518, "yellow"),
+		createBall(180, 516, "red"),
+		createBall(200, 516, "black"),
+		createBall(220, 516, "yellow"),
 
-		createBall(170, 537, "yellow"),
-		createBall(190, 537, "red"),
-		createBall(210, 537, "yellow"),
-		createBall(230, 537, "red"),
+		createBall(170, 534, "yellow"),
+		createBall(190, 534, "red"),
+		createBall(210, 534, "yellow"),
+		createBall(230, 534, "red"),
 
-		createBall(160, 556, "red"),
-		createBall(180, 556, "yellow"),
-		createBall(200, 556, "red"),
-		createBall(220, 556, "yellow"),
-		createBall(240, 556, "yellow"),
+		createBall(160, 552, "red"),
+		createBall(180, 552, "yellow"),
+		createBall(200, 552, "red"),
+		createBall(220, 552, "yellow"),
+		createBall(240, 552, "yellow"),
 	]
 }
 
