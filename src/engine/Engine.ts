@@ -44,6 +44,10 @@ export abstract class RigidBody {
   ApplyForce(force: Vector2): void {
     this.force = Vector2.Add(this.force, force)
   }
+
+  ApplyImpulse(impulse: Vector2): void {
+    this.velocity = Vector2.Add(this.velocity, impulse)
+  }
 }
 
 interface ShapeProps {
@@ -119,6 +123,7 @@ class CollisionData {
 class Manifold {
   pair: Pair
   collisionData: CollisionData
+
   constructor(pair: Pair, collisionData: CollisionData) {
     this.pair = pair
     this.collisionData = collisionData

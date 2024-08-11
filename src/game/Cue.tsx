@@ -23,7 +23,7 @@ export class Cue extends CanvasDrawable {
 
   HitBall() {
     const forceVector = this.cueBall.transform.position.VectorTo(this.tipPosition)
-    this.cueBall.ApplyForce(forceVector.Mult(100000))
+    this.cueBall.ApplyImpulse(forceVector.Mult(10))
   }
 
   SetPosition(position: Vector2) {
