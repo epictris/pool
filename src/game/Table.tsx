@@ -2,7 +2,7 @@ import { onMount, type Component } from 'solid-js';
 import { Engine, PhysicsParams } from '../engine/Engine';
 import { Transform, Vector2 } from '../math/utils';
 import { Ball, BallShape } from '../game/Ball';
-import { Barrier, BarrierShape } from './Barrier';
+import { Barrier, BarrierPanel } from './Barrier';
 import { CanvasDrawable, CanvasRenderer } from '../engine/Renderer';
 import { Cue } from './Cue';
 import { createBall, EightBallPool, GameState } from './EightBallPool';
