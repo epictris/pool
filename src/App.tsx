@@ -2,12 +2,12 @@ import type { Component } from 'solid-js';
 
 import logo from './logo.svg';
 import styles from './App.module.css';
-import Scene from './physics/Scene';
+import Table from './game/Table';
 
 const App: Component = () => {
   return (
     <div class={styles.App}>
-      <Scene width={400} height={700} physicsParams={{maxStepsPerFrame: 5, targetStepsPerSecond: 120}}/>
+      <Table width={400} height={700} physicsParams={{maxStepsPerFrame: 5, targetStepsPerSecond: 120}}/>
     </div>
   );
 };

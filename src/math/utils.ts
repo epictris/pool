@@ -7,6 +7,14 @@ export class Vector2 {
         this.y = y
     }
 
+    VectorTo(vector: Vector2): Vector2 {
+        return new Vector2({x: this.x - vector.x, y: this.y - vector.y})
+    }
+
+    AngleTo(vector: Vector2): number {
+        return Math.atan2(vector.y - this.y, vector.x - this.x)
+    }
+
     Dot(vector: Vector2): number {
         return this.x * vector.x + this.y * vector.y
     }
@@ -29,7 +37,7 @@ export class Vector2 {
         return new Vector2({x: A.x + B.x, y: A.y + B.y})
     }
 
-    Normalize(): void {
+    Normalize(): Vector2 {
         const length = Math.sqrt(this.x * this.x + this.y * this.y)
         if (length) {
             this.x /= length
@@ -38,6 +46,7 @@ export class Vector2 {
             this.x = 0
             this.y = 0
         }
+        return this
 
     }
 }
@@ -45,9 +54,9 @@ export class Vector2 {
 export class Transform {
     position: Vector2;
     rotation: number
-    constructor(props: { position: Vector2; rotation: number; }) {
-        this.position = props.position
-        this.rotation = props.rotation
+    constructor(position: Vector2, rotation: number) {
+        this.position = position
+        this.rotation = rotation
     }
 }
 

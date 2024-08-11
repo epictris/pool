@@ -1,11 +1,12 @@
 import { clamp, Transform, Vector2 } from "../math/utils"
+import { Renderer } from "./Renderer"
 
 export interface PhysicsParams {
   maxStepsPerFrame: number // cap simulation steps per frame to avoid engine freeze if physics step resolution takes too long
   targetStepsPerSecond: number // target simulation steps per second
 }
 
-interface BodyProps {
+export interface BodyProps {
   shape: Shape
   restitution: number
   velocity?: Vector2
@@ -13,23 +14,35 @@ interface BodyProps {
   spin?: Vector2
 }
 
-export class Body {
+export abstract class RigidBody {
   transform: Transform
   shape: Shape
   velocity: Vector2
   restitution: number
   inv_mass: number
   force: Vector2
-  spin: Vector2
+  isStationary: boolean
 
   constructor(props: BodyProps) {
     this.shape = props.shape
     this.transform = props.shape.current
     this.velocity = props.velocity ?? new Vector2({x: 0, y: 0})
+    this.isStationary = props.velocity?.MagnitudeSquared() ? false : true
     this.inv_mass = props.mass ? 1/props.mass : 0
     this.restitution = props.restitution
     this.force = new Vector2({x: 0, y: 0})
-    this.spin = props.spin ?? new Vector2({x: 0, y: 0})
+  }
+
+  FixedUpdate(timeStep: number) {}
+
+  SetTransform(transform: Transform) {
+    this.transform = transform
+    this.shape.previous = this.shape.current
+    this.shape.current = structuredClone(transform)
+  }
+
+  ApplyForce(force: Vector2): void {
+    this.force = Vector2.Add(this.force, force)
   }
 }
 
@@ -37,18 +50,27 @@ interface ShapeProps {
   transform: Transform
 }
 
-abstract class Shape {
+export abstract class Shape {
   current: Transform
   previous: Transform
+  interpolatedTransform: Transform
+
   constructor(props: ShapeProps) {
+    this.interpolatedTransform = structuredClone(props.transform)
     this.previous = structuredClone(props.transform)
     this.current = structuredClone(props.transform)
   }
-  setTransform(props: {transform: Transform}): void {
-    this.previous = this.current
-    this.current = structuredClone(props.transform)
+
+  UpdateTransform(interpolation: number): void {
+    const x = this.previous.position.x + (this.current.position.x - this.previous.position.x) * interpolation
+    const y = this.previous.position.y + (this.current.position.y - this.previous.position.y) * interpolation
+    const position = new Vector2({x: x, y: y})
+    const rotation = this.previous.rotation + (this.current.rotation - this.previous.rotation) * interpolation
+    this.interpolatedTransform = new Transform(
+      position,
+      rotation
+    )
   }
-  abstract render(interpolation: number, ctx: CanvasRenderingContext2D): void
 }
 
 interface AABBProps extends ShapeProps {
@@ -66,11 +88,6 @@ export class AABB extends Shape {
     this.height = props.height
   }
 
-  render(interpolation: number, ctx: CanvasRenderingContext2D): void {
-    const x = this.previous.position.x + (this.current.position.x - this.previous.position.x) * interpolation
-    const y = this.previous.position.y + (this.current.position.y - this.previous.position.y) * interpolation
-    ctx.fillRect(x - this.width/2, y - this.height/2, this.width, this.height)
-  }
 }
 
 interface CircleProps extends ShapeProps {
@@ -88,16 +105,6 @@ export class Circle extends Shape {
     this.color = props.color ?? '#ffffff'
   }
 
-  render(interpolation: number, ctx: CanvasRenderingContext2D): void {
-    const x = this.previous.position.x + (this.current.position.x - this.previous.position.x) * interpolation
-    const y = this.previous.position.y + (this.current.position.y - this.previous.position.y) * interpolation
-    ctx.beginPath();
-    ctx.arc(x, y, this.radius, 0, 2 * Math.PI)
-    ctx.fillStyle = this.color
-    ctx.fill()
-    ctx.stroke()
-    ctx.restore()
-  }
 }
 
 class CollisionData {
@@ -126,7 +133,7 @@ class Manifold {
     this.pair.bodyB.transform.position = Vector2.Add(this.pair.bodyB.transform.position, correctionVector.Mult(this.pair.bodyB.inv_mass))
   }
 
-  resolveCollision(A: Body, B:Body): void {
+  resolveCollision(A: RigidBody, B:RigidBody): void {
     const relativeVelocity = new Vector2({x: B.velocity.x - A.velocity.x, y: B.velocity.y - A.velocity.y})
     const velocityAlongNormal = relativeVelocity.Dot(this.collisionData.normal)
 
@@ -149,11 +156,40 @@ class Manifold {
 }
 
 class Pair {
-  bodyA: Body
-  bodyB: Body
-  constructor(bodyA: Body, bodyB: Body) {
+  bodyA: RigidBody
+  bodyB: RigidBody
+  constructor(bodyA: RigidBody, bodyB: RigidBody) {
     this.bodyA = bodyA
     this.bodyB = bodyB
+  }
+}
+
+export abstract class Scene {
+  bodies: Array<RigidBody>
+  renderer: Renderer
+  constructor(renderer: Renderer) {
+    this.bodies = []
+    this.renderer = renderer
+  }
+
+  FixedUpdate(timeStep: number) {
+
+  }
+
+  PostFixedUpdate() {
+
+  }
+
+  Update(deltaTime: number) {
+
+  }
+
+  Render() {
+
+  }
+
+  AddBody(body: RigidBody) {
+    this.bodies.push(body)
   }
 }
 
@@ -162,24 +198,17 @@ export class Engine {
   stepDuration: number
   previousFrameTime: number
   engineTimeSincePreviousStep: number
-  renderer: CanvasRenderer
-  bodies: Array<Body>
+  scene?: Scene
 
-  constructor(physicsParams: PhysicsParams, renderer: CanvasRenderer) {
+  constructor(physicsParams: PhysicsParams) {
     this.maxStepsPerFrame = physicsParams.maxStepsPerFrame
     this.stepDuration = 1000/physicsParams.targetStepsPerSecond
-    this.bodies = []
     this.previousFrameTime = 0
     this.engineTimeSincePreviousStep = 0
-    this.renderer = renderer
-  }
-
-  addBody(body: Body): void {
-    this.bodies.push(body)
   }
 
   // maybe define maximum position difference from previous frame (half the width of the smallest object) - if exceeds difference check in steps
-  checkCollision(pair: Pair): Manifold | null {
+  private checkCollision(pair: Pair): Manifold | null {
     if (pair.bodyA.shape instanceof Circle) {
       if (pair.bodyB.shape instanceof Circle) {
 	const collisionData = this.checkCollisionCircleVsCircle(pair.bodyA.shape, pair.bodyB.shape)
@@ -197,7 +226,7 @@ export class Engine {
     return null
   }
 
-  checkCollisionAABBvsCircle(A: AABB, B: Circle): CollisionData | null {
+  private checkCollisionAABBvsCircle(A: AABB, B: Circle): CollisionData | null {
     const n = new Vector2({x: B.current.position.x - A.current.position.x, y: B.current.position.y - A.current.position.y})
     const closest = structuredClone(n)
 
@@ -234,7 +263,7 @@ export class Engine {
     return new CollisionData(penetration, normal)
   }
 
-  checkCollisionCircleVsCircle(A: Circle, B: Circle): CollisionData | null {
+  private checkCollisionCircleVsCircle(A: Circle, B: Circle): CollisionData | null {
     let r = A.radius + B.radius
     const radiusSquared = Math.pow(r, 2)
     const distanceSquared = Math.pow(A.current.position.x - B.current.position.x, 2) + Math.pow(A.current.position.y - B.current.position.y, 2)
@@ -247,11 +276,11 @@ export class Engine {
     return new CollisionData(penetration, normal)
   }
 
-  generatePairs(): Array<Pair> {
+  private generatePairs(bodies: Array<RigidBody>): Array<Pair> {
     const pairs: Array<Pair> = []
 
-    for (let bodyA of this.bodies) {
-      for (let bodyB of this.bodies) {
+    for (let bodyA of bodies) {
+      for (let bodyB of bodies) {
 	if (bodyA === bodyB) {
 	  continue
 	}
@@ -274,99 +303,70 @@ export class Engine {
     return uniquePairs
   }
 
-  resolveCollisions(pairs: Array<Pair>): void {
+  private resolveCollisions(pairs: Array<Pair>): void {
     for (let pair of pairs) {
       const collision = this.checkCollision(pair)
       collision?.resolveCollision(pair.bodyA, pair.bodyB)
     }
   }
 
-  applyFriction(body: Body) {
-    const frictionCoefficient = 9000
-    const frictionVector = body.velocity.Mult(-1)
-    frictionVector.Normalize()
-    const friction = frictionVector.Mult(frictionCoefficient)
-    body.force = Vector2.Add(body.force, friction)
-  }
-
-  applySpin(body: Body, timeStep: number) {
-    const spinCoefficient = 1000
-    const spinDecayCoefficient = 1.1
-    const spin = body.spin.Mult(spinCoefficient)
-    body.force = Vector2.Add(body.force, spin)
-    const spinReduction = body.spin.Mult(spinDecayCoefficient * timeStep)
-    body.spin = Vector2.Subtract(body.spin, spinReduction)
-  }
-
-  applyForces(timeStep: number) {
-    for (let body of this.bodies) {
-      this.applyFriction(body)
-      this.applySpin(body, timeStep)
+  private applyForces(timeStep: number, bodies: Array<RigidBody>) {
+    for (let body of bodies) {
+      body.FixedUpdate(timeStep)
 
       const acceleration = body.force.Mult(body.inv_mass);
       body.velocity = Vector2.Add(body.velocity, acceleration.Mult(timeStep))
 
       if (body.velocity.MagnitudeSquared() < 1) {
 	body.velocity = Vector2.ZERO
+	body.isStationary = true
+      } else {
+	body.isStationary = false
       }
 
-      body.transform.position = Vector2.Add(body.transform.position, body.velocity.Mult(timeStep))
+      const position = Vector2.Add(body.transform.position, body.velocity.Mult(timeStep))
+      body.SetTransform(new Transform(position, body.transform.rotation))
       body.force = new Vector2({x: 0, y: 0})
     }
   }
 
-  updateShapes() {
-    for (let body of this.bodies) {
-      body.shape.setTransform({transform: body.transform})
-    }
+  private SimulatePhysicsStep(timeStep: number, bodies: Array<RigidBody>) {
+    const pairs = this.generatePairs(bodies)
+    this.resolveCollisions(pairs)
+    this.applyForces(timeStep, bodies)
   }
 
-  fixedUpdate(timeStep: number) {
-    const pairs = this.generatePairs()
-    this.resolveCollisions(pairs)
-    this.applyForces(timeStep)
-    this.updateShapes()
-  }
-  start() {
-    requestAnimationFrame(update)
+  Load(scene: Scene) {
+    requestAnimationFrame(loop)
     const engine = this
 
-    function update(t: number) {
-      const deltaTime = t - engine.previousFrameTime
+    function loop(t: number) {
+      let deltaTime = t - engine.previousFrameTime
       engine.previousFrameTime = t
       engine.engineTimeSincePreviousStep += deltaTime
 
       // cap accumulator to avoid engine freeze if physics step resolution takes too long
-      engine.engineTimeSincePreviousStep = Math.min(engine.engineTimeSincePreviousStep, engine.stepDuration * engine.maxStepsPerFrame)
+      if (engine.engineTimeSincePreviousStep > engine.stepDuration * engine.maxStepsPerFrame) {
+	engine.engineTimeSincePreviousStep = engine.stepDuration * engine.maxStepsPerFrame
+	deltaTime = engine.engineTimeSincePreviousStep - deltaTime
+      }
 
       while (engine.engineTimeSincePreviousStep > engine.stepDuration) {
 	engine.engineTimeSincePreviousStep -= engine.stepDuration
 	// process physics step update
-	engine.fixedUpdate(engine.stepDuration/1000)
+	scene.FixedUpdate(engine.stepDuration/1000)
+	engine.SimulatePhysicsStep(engine.stepDuration/1000, scene.bodies)
+	scene.PostFixedUpdate()
       }
 
       const stepInterpolation = engine.engineTimeSincePreviousStep/engine.stepDuration
-      engine.renderer.update(stepInterpolation, engine.bodies.map(body => body.shape))
-      requestAnimationFrame(update);
+      for (let body of scene.bodies) {
+	body.shape.UpdateTransform(stepInterpolation)
+      }
+      scene.Update(deltaTime)
+      scene.Render()
+      requestAnimationFrame(loop);
     }
   }
 
-}
-
-export class CanvasRenderer {
-  ctx: CanvasRenderingContext2D
-  canvas: HTMLCanvasElement
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
-    this.canvas = canvas
-    this.ctx = ctx
-  }
-  update(stepInterpolation: number, shapes: Array<Shape>) {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-    for (let shape of shapes) {
-      this.ctx.save()
-      shape.render(stepInterpolation, this.ctx)
-      this.ctx.restore()
-    }
-
-  }
 }
