@@ -10,7 +10,7 @@ WIP 2D pool game to play with friends
 
 
 ## TODO
-- [ ] basic cue implementation
+- [x] basic cue implementation
 - [ ] corner/side pockets
 - [ ] ball textures (accounting for spin)
 - [ ] cue power/spin UI
