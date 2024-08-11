@@ -13,6 +13,7 @@ WIP 2D pool game to play with friends
 - [x] basic cue implementation
 - [ ] corner/side pockets
 - [ ] ball textures (accounting for spin)
+- [ ] more robust cue implementation
 - [ ] cue power/spin UI
 - [ ] basic ball direction indicator
 - [ ] advanced ball direction indicator (incl. spin)
