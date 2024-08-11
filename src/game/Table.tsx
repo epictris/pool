@@ -7,17 +7,6 @@ import { CanvasDrawable, CanvasRenderer } from '../engine/Renderer';
 import { Cue } from './Cue';
 import { createBall, EightBallPool, GameState } from './EightBallPool';
 
-class Background implements CanvasDrawable {
-  image: HTMLImageElement
-  constructor() {
-    const background = new Image()
-    background.src = "https://i.imgur.com/o871lO0.jpeg"
-    this.image = background
-  }
-  Draw(ctx: CanvasRenderingContext2D): void {
-    ctx.drawImage(this.image, 0, 0)
-  }
-}
 
 interface SceneProps {
   width: number
