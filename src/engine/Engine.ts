@@ -251,7 +251,15 @@ export class Engine {
 	}
       }
       else if (pair.bodyB.shape instanceof Box) {
-	const collisionData = this.getCollisionAABBVsCircle(pair.bodyB.shape, pair.bodyA.shape)
+	  const collisionData = this.getCollisionAABBVsCircle(pair.bodyB.shape, pair.bodyA.shape)
+	  if (collisionData) {
+	    return new Manifold(pair, collisionData)
+	  }
+      }
+    } else if (pair.bodyA.shape instanceof Box) {
+      if (pair.bodyB.shape instanceof Circle) {
+	const collisionData = this.getCollisionCircleVsAABB(pair.bodyB.shape, pair.bodyA.shape)
+	console.log(collisionData)
 	if (collisionData) {
 	  return new Manifold(pair, collisionData)
 	}
@@ -270,8 +278,44 @@ export class Engine {
     return true
   }
 
+  private getCollisionCircleVsAABB(A: Circle, B: Box): CollisionData | null {
+    const n = new Vector2({x: B.next.position.x - A.next.position.x, y: B.next.position.y - A.next.position.y})
+    const closest = structuredClone(n)
+
+    const x_extent = B.width/2
+    const y_extent = B.height/2
+
+    closest.x = clamp(closest.x, -x_extent, x_extent)
+    closest.y = clamp(closest.y, -y_extent, y_extent)
+
+    let inside = false
+
+    if (n == closest) {
+      inside = true
+    }
+
+    const normal = new Vector2({x: closest.x - n.x, y: closest.y - n.y})
+    const distanceSquared = Math.pow(normal.x, 2) + Math.pow(normal.y, 2)
+    const circleRadius = A.radius
+
+    if (distanceSquared > circleRadius * circleRadius && !inside) {
+      return null
+    }
+
+    const distance = Math.sqrt(distanceSquared)
+
+    normal.Normalize()
+
+    const penetration = circleRadius - distance
+
+    if (inside) {
+      return new CollisionData(penetration, new Vector2({x: -normal.x, y: -normal.y}))
+    }
+    return new CollisionData(penetration, normal)
+  }
+
   private getCollisionAABBVsCircle(A: Box, B: Circle): CollisionData | null {
-    const n = new Vector2({x: B.current.position.x - A.current.position.x, y: B.current.position.y - A.current.position.y})
+    const n = new Vector2({x: B.next.position.x - A.next.position.x, y: B.next.position.y - A.next.position.y})
     const closest = structuredClone(n)
 
     const x_extent = A.width/2
@@ -310,10 +354,10 @@ export class Engine {
   private getCollisionCircleVsCircle(A: Circle, B: Circle): CollisionData | null {
     let r = A.radius + B.radius
     const radiusSquared = Math.pow(r, 2)
-    const distanceSquared = Math.pow(A.current.position.x - B.current.position.x, 2) + Math.pow(A.current.position.y - B.current.position.y, 2)
+    const distanceSquared = Math.pow(A.next.position.x - B.next.position.x, 2) + Math.pow(A.next.position.y - B.next.position.y, 2)
     if (radiusSquared < distanceSquared)
       return null
-    const normal = new Vector2({x: B.current.position.x - A.current.position.x, y: B.current.position.y - A.current.position.y})
+    const normal = new Vector2({x: B.next.position.x - A.next.position.x, y: B.next.position.y - A.next.position.y})
     normal.Normalize()
     const distance = Math.sqrt(distanceSquared)
     const penetration = distance - r
@@ -339,9 +383,10 @@ export class Engine {
     for (let potentialDuplicate of pairs) {
       let isDuplicate = false
       for (let pair of uniquePairs) {
-	if (pair.bodyA == potentialDuplicate.bodyB && pair.bodyB == potentialDuplicate.bodyA)
+	if (pair.bodyA === potentialDuplicate.bodyB && pair.bodyB === potentialDuplicate.bodyA) {
 	  isDuplicate = true
-	break
+	  break
+	}
       }
       if (!isDuplicate) {
 	uniquePairs.push(potentialDuplicate)
@@ -379,8 +424,9 @@ export class Engine {
 
   broadPhase(pairs: Array<Pair>): Array<Pair> {
     const broadPhasePairs: Array<Pair> = []
+
     for (let pair of pairs) {
-      if (this.checkCollisionAABBVsAABB(pair.bodyA.shape.GenerateCurrentAABB(), pair.bodyB.shape.GenerateCurrentAABB())) {
+      if (this.checkCollisionAABBVsAABB(pair.bodyA.shape.GenerateNextAABB(), pair.bodyB.shape.GenerateNextAABB())) {
 	broadPhasePairs.push(pair)
       }
     }
@@ -389,8 +435,8 @@ export class Engine {
 
   private SimulatePhysicsStep(timeStep: number, bodies: Array<RigidBody>) {
     const pairs = this.generatePairs(bodies)
-    const broadPhase = this.broadPhase(pairs)
-    this.resolveCollisions(broadPhase)
+    const filteredPairs = this.broadPhase(pairs)
+    this.resolveCollisions(filteredPairs)
     this.applyForces(timeStep, bodies)
   }
 
