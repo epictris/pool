@@ -25,7 +25,7 @@ WIP 2D pool game to play with friends
 - [ ] live gamemode
 
 ## Bugs
-- fast moving balls can phase through each other or the barriers
+- ~fast moving balls can phase through each other or the barriers~
 
 ## Usage
 ### `npm run dev` or `npm start`
