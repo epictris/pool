@@ -26,6 +26,8 @@ WIP 2D pool game to play with friends
 
 ## Bugs
 - ~fast moving balls can phase through each other or the barriers~
+- ~balls sometimes overlap after break~
+- ~balls visually overlap when colliding~
 
 ## Usage
 ### `npm run dev` or `npm start`
