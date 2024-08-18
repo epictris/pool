@@ -5,7 +5,7 @@ import { Ball, BallShape } from '../game/Ball';
 import { Barrier, BarrierPanel } from './Barrier';
 import { CanvasDrawable, CanvasRenderer } from '../engine/Renderer';
 import { Cue } from './Cue';
-import { createBall, EightBallPool, GameState } from './EightBallPool';
+import { EightBallPool, GameState } from './EightBallPool';
 
 
 interface SceneProps {
@@ -35,12 +35,13 @@ const Table: Component<SceneProps> = (props: SceneProps) => {
     const engine = new Engine(props.physicsParams)
 
     scene = new EightBallPool(renderer)
+    console.log(scene)
 
     engine.Load(scene)
   })
 
   function handleMouseMove(e: MouseEvent) {
-    scene?.cue.SetPosition(new Vector2({x: e.offsetX, y: e.offsetY}))
+    scene?.cue.SetPosition(new Vector2(e.offsetX, e.offsetY))
   }
 
   function handleMouseClick(e: MouseEvent) {

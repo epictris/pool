@@ -29,7 +29,7 @@ export class Ball extends RigidBody {
 
   constructor(props: BallProps) {
     super(props)
-    this.spin = props.spin ?? new Vector2({x: 0, y: 0})
+    this.spin = props.spin ?? Vector2.ZERO
     this.shape = props.shape
   }
 

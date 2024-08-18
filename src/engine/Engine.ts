@@ -13,6 +13,7 @@ export interface BodyProps {
   mass?: number
   spin?: Vector2
   static?: boolean
+  debug?: boolean
 }
 
 export abstract class RigidBody {
@@ -24,16 +25,22 @@ export abstract class RigidBody {
   force: Vector2
   isStationary: boolean
   static: boolean
+  debug: boolean
 
   constructor(props: BodyProps) {
     this.shape = props.shape
     this.transform = props.shape.next
-    this.velocity = props.velocity ?? new Vector2({x: 0, y: 0})
+    this.velocity = props.velocity ?? Vector2.ZERO
     this.isStationary = props.velocity?.MagnitudeSquared() ? false : true
     this.inv_mass = props.mass ? 1/props.mass : 0
     this.restitution = props.restitution
-    this.force = new Vector2({x: 0, y: 0})
+    this.force = Vector2.ZERO
     this.static = props.static ?? false
+    this.debug = props.debug ?? false
+  }
+
+  SetDebug(debug: boolean) {
+    this.debug = debug
   }
 
   FixedUpdate(timeStep: number) {}
@@ -41,7 +48,7 @@ export abstract class RigidBody {
   SetTransform(transform: Transform) {
     this.transform = transform
     this.shape.current = this.shape.next
-    this.shape.next = structuredClone(transform)
+    this.shape.next = new Transform(new Vector2(transform.position.x, transform.position.y), transform.rotation)
   }
 
   ApplyForce(force: Vector2): void {
@@ -63,15 +70,15 @@ export abstract class Shape {
   interpolatedTransform: Transform
 
   constructor(props: ShapeProps) {
-    this.interpolatedTransform = structuredClone(props.transform)
-    this.current = structuredClone(props.transform)
-    this.next = structuredClone(props.transform)
+    this.interpolatedTransform = props.transform.copy()
+    this.current = props.transform.copy()
+    this.next = props.transform.copy()
   }
 
   GetInterpolatedTransform(interpolation: number): Transform {
     const x = this.current.position.x + (this.next.position.x - this.current.position.x) * interpolation
     const y = this.current.position.y + (this.next.position.y - this.current.position.y) * interpolation
-    const position = new Vector2({x: x, y: y})
+    const position = new Vector2(x, y)
     const rotation = this.current.rotation + (this.next.rotation - this.current.rotation) * interpolation
     return new Transform(
       position,
@@ -112,10 +119,10 @@ export class Box extends Shape {
   }
 
   GenerateCurrentAABB(): AABB {
-    return new AABB(new Vector2({x: this.current.position.x - this.width/2, y: this.current.position.y - this.height/2}), new Vector2({x: this.current.position.x + this.width/2, y: this.current.position.y + this.height/2}))
+    return new AABB(new Vector2(this.current.position.x - this.width/2, this.current.position.y - this.height/2), new Vector2(this.current.position.x + this.width/2, this.current.position.y + this.height/2))
   }
   GenerateNextAABB(): AABB {
-    return new AABB(new Vector2({x: this.next.position.x - this.width/2, y: this.next.position.y - this.height/2}), new Vector2({x: this.next.position.x + this.width/2, y: this.next.position.y + this.height/2}))
+    return new AABB(new Vector2(this.next.position.x - this.width/2, this.next.position.y - this.height/2), new Vector2(this.next.position.x + this.width/2, this.next.position.y + this.height/2))
   }
 
 }
@@ -136,10 +143,10 @@ export class Circle extends Shape {
   }
 
   GenerateCurrentAABB(): AABB {
-    return new AABB(new Vector2({x: this.current.position.x - this.radius, y: this.current.position.y - this.radius}), new Vector2({x: this.current.position.x + this.radius, y: this.current.position.y + this.radius}))
+    return new AABB(new Vector2(this.current.position.x - this.radius, this.current.position.y - this.radius), new Vector2(this.current.position.x + this.radius, this.current.position.y + this.radius))
   }
   GenerateNextAABB(): AABB {
-    return new AABB(new Vector2({x: this.next.position.x - this.radius, y: this.next.position.y - this.radius}), new Vector2({x: this.next.position.x + this.radius, y: this.next.position.y + this.radius}))
+    return new AABB(new Vector2(this.next.position.x - this.radius, this.next.position.y - this.radius), new Vector2(this.next.position.x + this.radius, this.next.position.y + this.radius))
   }
 
 }
@@ -172,7 +179,7 @@ class Manifold {
   }
 
   resolveCollision(A: RigidBody, B:RigidBody): void {
-    const relativeVelocity = new Vector2({x: B.velocity.x - A.velocity.x, y: B.velocity.y - A.velocity.y})
+    const relativeVelocity = new Vector2(B.velocity.x - A.velocity.x, B.velocity.y - A.velocity.y)
     const velocityAlongNormal = relativeVelocity.Dot(this.collisionData.normal)
 
     if (velocityAlongNormal > 0) {
@@ -189,7 +196,11 @@ class Manifold {
     this.pair.bodyA.velocity = Vector2.Subtract(this.pair.bodyA.velocity, impulse.Mult(A.inv_mass)) 
     this.pair.bodyB.velocity = Vector2.Add(this.pair.bodyB.velocity, impulse.Mult(B.inv_mass)) 
 
-    this.applyPositionalCorrection()
+    // move ball to correct position
+    
+    console.log(this.collisionData.penetration)
+
+    // this.applyPositionalCorrection()
   }
 }
 
@@ -234,6 +245,7 @@ export abstract class Scene {
 export class Engine {
   maxStepsPerFrame: number
   stepDuration: number
+  timeScale: number
   previousFrameTime: number
   engineTimeSincePreviousStep: number
   scene?: Scene
@@ -243,6 +255,7 @@ export class Engine {
     this.stepDuration = 1000/physicsParams.targetStepsPerSecond
     this.previousFrameTime = 0
     this.engineTimeSincePreviousStep = 0
+    this.timeScale = 0.05
   }
 
   private checkCollision(pair: Pair, interpolation: number): Manifold | null {
@@ -262,7 +275,6 @@ export class Engine {
     } else if (pair.bodyA.shape instanceof Box) {
       if (pair.bodyB.shape instanceof Circle) {
 	const collisionData = this.getCollisionCircleVsAABB(pair.bodyB.shape, pair.bodyA.shape, interpolation)
-	console.log(collisionData)
 	if (collisionData) {
 	  return new Manifold(pair, collisionData)
 	}
@@ -284,8 +296,8 @@ export class Engine {
   private getCollisionCircleVsAABB(A: Circle, B: Box, interpolation: number): CollisionData | null {
     const transformA = A.GetInterpolatedTransform(interpolation)
     const transformB = B.GetInterpolatedTransform(interpolation)
-    const n = new Vector2({x: transformB.position.x - transformA.position.x, y: transformB.position.y - transformA.position.y})
-    const closest = structuredClone(n)
+    const n = new Vector2(transformB.position.x - transformA.position.x, transformB.position.y - transformA.position.y)
+    const closest = n.copy()
 
     const x_extent = B.width/2
     const y_extent = B.height/2
@@ -299,7 +311,7 @@ export class Engine {
       inside = true
     }
 
-    const normal = new Vector2({x: closest.x - n.x, y: closest.y - n.y})
+    const normal = new Vector2(closest.x - n.x, closest.y - n.y)
     const distanceSquared = Math.pow(normal.x, 2) + Math.pow(normal.y, 2)
     const circleRadius = A.radius
 
@@ -314,7 +326,7 @@ export class Engine {
     const penetration = circleRadius - distance
 
     if (inside) {
-      return new CollisionData(penetration, new Vector2({x: -normal.x, y: -normal.y}))
+      return new CollisionData(penetration, new Vector2(-normal.x, -normal.y))
     }
     return new CollisionData(penetration, normal)
   }
@@ -322,7 +334,7 @@ export class Engine {
   private getCollisionAABBVsCircle(A: Box, B: Circle, interpolation: number): CollisionData | null {
     const transformA = A.GetInterpolatedTransform(interpolation)
     const transformB = B.GetInterpolatedTransform(interpolation)
-    const n = new Vector2({x: transformB.position.x - transformA.position.x, y: transformB.position.y - transformA.position.y})
+    const n = new Vector2(transformB.position.x - transformA.position.x, transformB.position.y - transformA.position.y)
     const closest = structuredClone(n)
 
     const x_extent = A.width/2
@@ -337,7 +349,7 @@ export class Engine {
       inside = true
     }
 
-    const normal = new Vector2({x: closest.x - n.x, y: closest.y - n.y})
+    const normal = new Vector2(closest.x - n.x, closest.y - n.y)
     const distanceSquared = Math.pow(normal.x, 2) + Math.pow(normal.y, 2)
     const circleRadius = B.radius
 
@@ -353,7 +365,7 @@ export class Engine {
     const penetration = circleRadius - distance
 
     if (inside) {
-      return new CollisionData(penetration, new Vector2({x: -normal.x, y: -normal.y}))
+      return new CollisionData(penetration, new Vector2(-normal.x, -normal.y))
     }
     return new CollisionData(penetration, normal)
   }
@@ -366,7 +378,7 @@ export class Engine {
     const distanceSquared = Math.pow(transformA.position.x - transformB.position.x, 2) + Math.pow(transformA.position.y - transformB.position.y, 2)
     if (radiusSquared < distanceSquared)
       return null
-    const normal = new Vector2({x: transformB.position.x - transformA.position.x, y: transformB.position.y - transformA.position.y})
+    const normal = new Vector2(transformB.position.x - transformA.position.x, transformB.position.y - transformA.position.y)
     normal.Normalize()
     const distance = Math.sqrt(distanceSquared)
     const penetration = distance - r
@@ -407,9 +419,10 @@ export class Engine {
     return uniquePairs
   }
 
-  private narrowPhase(pairs: Array<Pair>): void {
-    const subStepResolution = 4
-    for (let pair of pairs) {
+  private subStep(pair: Pair) {
+      console.log(pair.bodyA.debug, pair.bodyA.transform.position.y)
+      console.log(pair.bodyB.debug, pair.bodyB.transform.position.y)
+      const subStepResolution = 4
       const AABB_A = pair.bodyA.shape.GenerateNextAABB()
       const xMovement_A = Math.abs(pair.bodyA.shape.current.position.x - pair.bodyA.shape.next.position.x)
       const yMovement_A = Math.abs(pair.bodyA.shape.current.position.y - pair.bodyA.shape.next.position.y)
@@ -427,17 +440,40 @@ export class Engine {
 
       const iterations = Math.max(xIterations, yIterations) + 1
 
+ //      const collision = this.checkCollision(pair, 1)
+	// if (collision) {
+	//   const correctedTransformA = pair.bodyA.shape.GetInterpolatedTransform(1)
+	//   const correctedTransformB = pair.bodyB.shape.GetInterpolatedTransform(1)
+	//   pair.bodyA.transform = correctedTransformA
+	//   pair.bodyB.transform = correctedTransformB
+	//   collision?.resolveCollision(pair.bodyA, pair.bodyB)
+ //      }
+ //      return
+
+
       for (let i = 0; i <= 1; i+= 1/iterations) {
 	const collision = this.checkCollision(pair, i)
+	if (pair.bodyA.debug || pair.bodyB.debug) {
+	  console.log(collision)
+	}
 	if (collision) {
 	  const correctedTransformA = pair.bodyA.shape.GetInterpolatedTransform(i)
 	  const correctedTransformB = pair.bodyB.shape.GetInterpolatedTransform(i)
 	  pair.bodyA.transform = correctedTransformA
 	  pair.bodyB.transform = correctedTransformB
-	  collision?.resolveCollision(pair.bodyA, pair.bodyB)
-	  break
+	  if (pair.bodyA.debug || pair.bodyB.debug) {
+	    console.log(pair)
+	  }
+	  collision.resolveCollision(pair.bodyA, pair.bodyB)
+	  return
 	}
       }
+
+  }
+
+  private narrowPhase(pairs: Array<Pair>): void {
+    for (let pair of pairs) {
+      this.subStep(pair)
     }
   }
 
@@ -457,7 +493,7 @@ export class Engine {
 
       const position = Vector2.Add(body.transform.position, body.velocity.Mult(timeStep))
       body.SetTransform(new Transform(position, body.transform.rotation))
-      body.force = new Vector2({x: 0, y: 0})
+      body.force = new Vector2(0, 0)
     }
   }
 
@@ -470,13 +506,13 @@ export class Engine {
 
       const currentA = pair.bodyA.shape.GenerateCurrentAABB()
       const nextA = pair.bodyA.shape.GenerateNextAABB()
-      const minA = new Vector2({x: Math.min(currentA.min.x, nextA.min.x), y: Math.min(currentA.min.y, nextA.min.y)})
-      const maxA = new Vector2({x: Math.max(currentA.max.x, nextA.max.x), y: Math.max(currentA.max.y, nextA.max.y)})
+      const minA = new Vector2(Math.min(currentA.min.x, nextA.min.x), Math.min(currentA.min.y, nextA.min.y))
+      const maxA = new Vector2(Math.max(currentA.max.x, nextA.max.x), Math.max(currentA.max.y, nextA.max.y))
 
       const currentB = pair.bodyB.shape.GenerateCurrentAABB()
       const nextB = pair.bodyB.shape.GenerateNextAABB()
-      const minB = new Vector2({x: Math.min(currentB.min.x, nextB.min.x), y: Math.min(currentB.min.y, nextB.min.y)})
-      const maxB = new Vector2({x: Math.max(currentB.max.x, nextB.max.x), y: Math.max(currentB.max.y, nextB.max.y)})
+      const minB = new Vector2(Math.min(currentB.min.x, nextB.min.x), Math.min(currentB.min.y, nextB.min.y))
+      const maxB = new Vector2(Math.max(currentB.max.x, nextB.max.x), Math.max(currentB.max.y, nextB.max.y))
 
       const testA = new AABB(minA, maxA)
       const testB = new AABB(minB, maxB)
@@ -502,6 +538,9 @@ export class Engine {
     function loop(t: number) {
       let deltaTime = t - engine.previousFrameTime
       engine.previousFrameTime = t
+
+      deltaTime *= engine.timeScale
+
       engine.engineTimeSincePreviousStep += deltaTime
 
       // cap accumulator to avoid engine freeze if physics step resolution takes too long
@@ -520,7 +559,7 @@ export class Engine {
 
       const stepInterpolation = engine.engineTimeSincePreviousStep/engine.stepDuration
       for (let body of scene.bodies) {
-	body.shape.UpdateTransform(stepInterpolation)
+	body.shape.UpdateTransform(0)
       }
       scene.Update(deltaTime)
       scene.Render()

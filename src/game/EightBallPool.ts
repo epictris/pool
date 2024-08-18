@@ -20,17 +20,17 @@ class Background implements CanvasDrawable {
 	}
 }
 
-const createBall = (x: number, y: number, color: string, speed: number = 0, direction: Vector2 = new Vector2({x:0, y: 0}), spin?: Vector2) => {
+const createBall = (x: number, y: number, color: string, speed: number = 0, direction: Vector2 = Vector2.ZERO, spin?: Vector2) => {
 	const velocity = direction.Mult(speed)
-	return new Ball({spin: spin, mass: 100, restitution: 0.55, velocity: velocity, shape: new BallShape({transform: new Transform(new Vector2({x: x, y: y}), 0), radius: 8, color: color})})
+	return new Ball({spin: spin, mass: 100, restitution: 0.7, velocity: velocity, shape: new BallShape({transform: new Transform(new Vector2(x, y), 0), radius: 8, color: color})})
 }
 
 function createBarrierPanel(x: number, y: number, width: number, height: number) {
-	return new Barrier({static: true, restitution: 0.8, shape: new BarrierPanel({transform: new Transform(new Vector2({x: x, y: y}), 0), width: width, height: height})})
+	return new Barrier({static: true, restitution: 0.8, shape: new BarrierPanel({transform: new Transform(new Vector2(x, y), 0), width: width, height: height})})
 }
 
 function createBarrierCircle(x: number, y: number, radius: number) {
-	return new Barrier({static: true, restitution: 0.8, shape: new BarrierCircle({transform: new Transform(new Vector2({x: x, y: y}), 0), radius: radius})})
+	return new Barrier({static: true, restitution: 0.8, shape: new BarrierCircle({transform: new Transform(new Vector2(x, y), 0), radius: radius})})
 }
 
 function createBarriers(): Array<Barrier> {
@@ -54,23 +54,23 @@ function createBalls(): Array<Ball> {
 	return [
 		createBall(200, 480, "red"),
 
-		createBall(190, 498, "yellow"),
-		createBall(210, 498, "red"),
-
-		createBall(180, 516, "red"),
-		createBall(200, 516, "black"),
-		createBall(220, 516, "yellow"),
-
-		createBall(170, 534, "yellow"),
-		createBall(190, 534, "red"),
-		createBall(210, 534, "yellow"),
-		createBall(230, 534, "red"),
-
-		createBall(160, 552, "red"),
-		createBall(180, 552, "yellow"),
-		createBall(200, 552, "red"),
-		createBall(220, 552, "yellow"),
-		createBall(240, 552, "yellow"),
+		// createBall(192, 495, "yellow"),
+		// createBall(208, 495, "red"),
+		//
+		// createBall(184, 510, "red"),
+		// createBall(200, 510, "black"),
+		// createBall(216, 510, "yellow"),
+		//
+		// createBall(176, 525, "yellow"),
+		// createBall(192, 525, "red"),
+		// createBall(208, 525, "yellow"),
+		// createBall(224, 525, "red"),
+		//
+		// createBall(168, 540, "red"),
+		// createBall(184, 540, "yellow"),
+		// createBall(200, 540, "red"),
+		// createBall(216, 540, "yellow"),
+		// createBall(232, 540, "yellow"),
 	]
 }
 
@@ -98,10 +98,14 @@ export class EightBallPool extends Scene {
 		}
 
 		const cueBall = createBall(200, 200, "white")
+		cueBall.SetDebug(true)
+		console.log(cueBall.transform.position)
 		this.cue = new Cue({cueBall: cueBall})
 		this.renderer.AddDrawable(this.cue)
 		this.AddBody(cueBall)
 		this.renderer.AddDrawable(cueBall.shape)
+		cueBall.ApplyImpulse(new Vector2(0, 1000))
+		console.log(cueBall)
 	}
 
 	SetState(state: GameState): void {
@@ -127,6 +131,7 @@ export class EightBallPool extends Scene {
 			}
 		}
 	}
+
 
 	Update(timeStep: number): void {
 

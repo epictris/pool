@@ -1,14 +1,13 @@
 export class Vector2 {
     x: number;
     y: number
-    constructor(props: { x: number; y: number; }) {
-        let {x, y} = props
+    constructor(x: number, y: number) {
         this.x = x
         this.y = y
     }
 
     VectorTo(vector: Vector2): Vector2 {
-        return new Vector2({x: this.x - vector.x, y: this.y - vector.y})
+        return new Vector2(this.x - vector.x, this.y - vector.y)
     }
 
     AngleTo(vector: Vector2): number {
@@ -20,21 +19,21 @@ export class Vector2 {
     }
 
     Mult(scalar: number): Vector2 {
-        return new Vector2({x: this.x * scalar, y: this.y * scalar})
+        return new Vector2(this.x * scalar, this.y * scalar)
     }
 
     MagnitudeSquared(): number {
         return this.x * this.x + this.y * this.y
     }
 
-    static ZERO = new Vector2({x: 0, y: 0})
+    static ZERO = new Vector2(0,0)
     
     static Subtract(A: Vector2, B: Vector2): Vector2 {
-        return new Vector2({x: A.x - B.x, y: A.y - B.y})
+        return new Vector2(A.x - B.x, A.y - B.y)
     }
 
     static Add(A: Vector2, B: Vector2): Vector2 {
-        return new Vector2({x: A.x + B.x, y: A.y + B.y})
+        return new Vector2(A.x + B.x, A.y + B.y)
     }
 
     Normalize(): Vector2 {
@@ -49,6 +48,10 @@ export class Vector2 {
         return this
 
     }
+
+    copy(): Vector2 {
+        return new Vector2(this.x, this.y)
+    }
 }
 
 export class Transform {
@@ -57,6 +60,10 @@ export class Transform {
     constructor(position: Vector2, rotation: number) {
         this.position = position
         this.rotation = rotation
+    }
+
+    copy(): Transform {
+        return new Transform(this.position.copy(), this.rotation)
     }
 }
 

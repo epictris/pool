@@ -16,7 +16,7 @@ export class Cue extends CanvasDrawable {
     super()
     this.cueBall = props.cueBall
     this.visible = true
-    this.tipPosition = this.cueBall.transform.position
+    this.tipPosition = new Vector2(this.cueBall.transform.position.x, this.cueBall.transform.position.y)
     this.image = new Image()
     this.image.src = "https://i.imgur.com/CTf7urI.png"
   }
