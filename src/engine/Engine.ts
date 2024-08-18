@@ -396,9 +396,9 @@ export class Engine {
 	if (bodyA.static && bodyB.static) {
 	  continue
 	}
-	// if (bodyA.isStationary && bodyB.isStationary) {
-	//   continue
-	// }
+	if (bodyA.isStationary && bodyB.isStationary) {
+	  continue
+	}
 	pairs.push(new Pair(bodyA, bodyB))
       }
     }
