@@ -585,7 +585,7 @@ export class Engine {
 
       const stepInterpolation = engine.engineTimeSincePreviousStep/engine.stepDuration
       for (let body of scene.bodies) {
-	body.shape.UpdateTransform(0)
+	body.shape.UpdateTransform(stepInterpolation)
       }
       scene.Update(deltaTime)
       scene.Render()
